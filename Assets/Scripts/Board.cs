@@ -1,13 +1,20 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SocialPlatforms.Impl;
 using UnityEngine.UIElements;
 
 public class Board : MonoBehaviour
 {
     [SerializeField]
     private Piece piecePrefab;
+    [SerializeField]
+    private TextMeshProUGUI scoreText;
+    private int score;
+    private int displayScore;
+
     private static Piece[,] slots;
 
     public const int Offset = -3;
@@ -32,12 +39,39 @@ public class Board : MonoBehaviour
                 slots[i, j].SetPosition(new Vector3(j + Offset, i + Offset, 0));
             }
         }
+
+        bool noMatches = false;
+
+        while (!noMatches)
+        {
+            noMatches = true;
+            for (int i = 0; i < 7; i++)
+            {
+                for (int j = 0; j < 6; j++)
+                {
+                    List<Piece> matches = CheckForMatches(slots[i, j]);
+
+                    if (matches.Count >= 3)
+                    {
+                        noMatches = false;
+
+                        Destroy(slots[i, j].gameObject);
+                        slots[i, j] = Instantiate(piecePrefab);
+                        slots[i, j].transform.position = new Vector3(j + Offset, i + Offset, 0);
+                        slots[i, j].Randomize();
+                        slots[i, j].SetPosition(new Vector3(j + Offset, i + Offset, 0));
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        displayScore = Mathf.RoundToInt(Mathf.Lerp(displayScore, score, 10 * Time.deltaTime));
+        scoreText.text = displayScore.ToString();
     }
 
     public static void CheckForSwap(Piece p1)
@@ -273,6 +307,8 @@ public class Board : MonoBehaviour
         List<Piece> newPieces = new List<Piece>();
         Board b = GameObject.FindObjectOfType<Board>();
         Piece prefab = b.piecePrefab;
+
+        b.score += Mathf.RoundToInt(matches.Count * 5f * Mathf.Pow(1.1f, matches.Count));
 
         foreach (Piece piece in matches)
         {

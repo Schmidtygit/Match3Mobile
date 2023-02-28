@@ -13,20 +13,28 @@ public class Piece : MonoBehaviour
     private SpriteRenderer sr;
     private Vector3 desiredPosition;
     private static float fallSpeed = 10;
-    private State state;
+    public State state { get; private set; }
 
     public static bool busy;
     int direction;
 
-    private enum State
+    public enum State
     {
         Normal,
-        Drag
+        Drag,
+        Spawning
     }
 
+    private void Start()
+    {
+        StartCoroutine(Spawn());
+    }
 
     private void Update()
     {
+        if (Board.Freeze)
+            return;
+
         if (state == State.Normal)
         {
             transform.position = Vector3.MoveTowards(transform.position, desiredPosition, fallSpeed * Time.deltaTime);
@@ -86,6 +94,7 @@ public class Piece : MonoBehaviour
             state = State.Drag;
             busy = true;
             direction = 0;
+            Board.StartBackup();
             StartCoroutine(GetDirectionOfDrag());
         }
     }
@@ -95,7 +104,12 @@ public class Piece : MonoBehaviour
         state = State.Normal;
         busy = false;
 
-        Board.OnPlace(this);
+        Board.OnPlace();
+    }
+
+    public void OnMatch()
+    {
+        Destroy(gameObject);
     }
 
     IEnumerator GetDirectionOfDrag()
@@ -122,8 +136,25 @@ public class Piece : MonoBehaviour
         }
     }
 
-    public void OnMatch()
+    IEnumerator Spawn()
     {
-        Destroy(gameObject);
+        transform.localScale = Vector3.zero;
+
+        for (int i = 0; i < 25; i++)
+        {
+            yield return new WaitForSeconds(0.01f);
+
+            transform.localScale += Vector3.one * (1f / 20f);
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            yield return new WaitForSeconds(0.01f);
+
+            transform.localScale -= Vector3.one * (1f / 20f);
+        }
+
     }
+
+    
 }

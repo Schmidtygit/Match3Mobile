@@ -16,6 +16,8 @@ public class Board : MonoBehaviour
 
     private static List<Piece> swapList = new List<Piece>();
 
+    public static bool Freeze;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -144,7 +146,7 @@ public class Board : MonoBehaviour
             {
 
                 slots[i, j] = backup[i, j];
-                
+                slots[i, j].SetPosition(new Vector3(j + Offset, i + Offset, 0));
             }
         }
     }
@@ -152,6 +154,7 @@ public class Board : MonoBehaviour
     public static List<Piece> CheckForMatches(Piece p)
     {
         List<Piece> pieces = new List<Piece>();
+        pieces.Add(p);  
         Vector2Int v2 = SlotPosition(p);
 
         int horCount = 0;
@@ -167,7 +170,7 @@ public class Board : MonoBehaviour
             else break;
         }
 
-        for (int i = v2.x - 1; i < slots.GetLength(0); i--)
+        for (int i = v2.x - 1; i < slots.GetLength(0) && i >= 0; i--)
         {
             if (slots[i, v2.y].GetShape() == p.GetShape())
             {
@@ -199,7 +202,7 @@ public class Board : MonoBehaviour
             else break;
         }
 
-        for (int i = v2.y - 1; i < slots.GetLength(1); i--)
+        for (int i = v2.y - 1; i < slots.GetLength(1) && i >= 0; i--)
         {
             if (slots[v2.x, i].GetShape() == p.GetShape())
             {
@@ -245,14 +248,63 @@ public class Board : MonoBehaviour
 
         result = pieces.Count >= 3;
 
+
         if (result)
         {
-            foreach(Piece piece in pieces)
-            {
-                piece.OnMatch();
-            }
+            DestroyMatches(pieces);
+        }
+        else
+        {
+            RestoreFromBackup();
         }
 
+
+        swapList = new List<Piece>();
         return result;
+    }
+
+    void CheckAgain(List<Piece> pieces)
+    {
+        StartCoroutine(CheckAgainIE(pieces));
+    }
+
+    public static void DestroyMatches(List<Piece> matches)
+    {
+        List<Piece> newPieces = new List<Piece>();
+        Board b = GameObject.FindObjectOfType<Board>();
+        Piece prefab = b.piecePrefab;
+
+        foreach (Piece piece in matches)
+        {
+            Vector2Int v2 = SlotPosition(piece);
+            slots[v2.x, v2.y] = Instantiate(prefab);
+            slots[v2.x, v2.y].transform.position = new Vector3(v2.y + Offset, v2.x + Offset, 0);
+            slots[v2.x, v2.y].Randomize();
+            slots[v2.x, v2.y].SetPosition(new Vector3(v2.y + Offset, v2.x + Offset, 0));
+            newPieces.Add(slots[v2.x, v2.y]);
+            Freeze = true;
+            piece.OnMatch();
+        }
+
+        b.CheckAgain(newPieces);
+    }
+
+    IEnumerator CheckAgainIE(List<Piece> pieces)
+    {
+        yield return new WaitForSeconds(0.4f);
+        Freeze = false;
+
+        foreach (Piece p in pieces)
+        {
+            if (p && p.state != Piece.State.Spawning)
+            {
+                List<Piece> matched = CheckForMatches(p);
+
+                if (matched.Count >= 3)
+                {
+                    DestroyMatches(matched);
+                }
+            }
+        }
     }
 }
